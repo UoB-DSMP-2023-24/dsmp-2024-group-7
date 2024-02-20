@@ -49,8 +49,6 @@ def TCRDist():
     print(distances_matrix)
 
 def WE_Encoding(data):
-    # 示例数据
-
     # 创建一个嵌入层
     embedding_dim = 2  # 嵌入向量的维度
     embedding_layer = tf.keras.layers.Embedding(input_dim=len(set(data)), output_dim=embedding_dim)
@@ -61,7 +59,6 @@ def WE_Encoding(data):
 
     # 将整数编码的数据作为嵌入层的输入
     embedded_data = embedding_layer(tf.constant(encoded_data))
-
     print(embedded_data.numpy())
 
 class Standard_Dataset(Dataset):
