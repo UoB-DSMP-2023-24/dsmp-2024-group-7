@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 
 def readdata():
     # 读取txt文件
-    file_path = 'vdjdb.txt'
+    file_path = 'data/vdjdb.txt'
     df = pd.read_csv(file_path, delimiter='\t')  # 如果文件使用制表符分隔，可以调整delimiter参数
 
     # 显示行数和列数
