@@ -1,66 +1,65 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-from tcrdist.repertoire import TCRrep
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer
 
 
 def readdata():
-    # 读取txt文件
-    file_path = 'data/vdjdb.txt'
+    # Read txt file
+    file_path = 'vdjdb.txt'
     df = pd.read_csv(file_path, delimiter='\t')  # 如果文件使用制表符分隔，可以调整delimiter参数
 
-    # 显示行数和列数
+    # Show number of rows and columns
     num_rows, num_cols = df.shape
-    print(f"行数: {num_rows}")
-    print(f"列数: {num_cols}")
+    print(f"rows: {num_rows}")
+    print(f"columns: {num_cols}")
 
-    # 显示列的名字
+    # Show the names of the columns
     column_names = df.columns.tolist()
-    print("列的名字:", column_names)
+    print("the names of the columns:", column_names)
 
-    # 将DataFrame保存为CSV文件，假设保存文件名为output.csv
+    # Save the DataFrame as a CSV file and name the file output.csv so that we can observe the data
     output_file = 'vdjdb_csv.csv'
     df.to_csv(output_file, index=False)
-    print(f"DataFrame已保存为CSV文件: {output_file}")
+    print(f"DataFrame saved as CSV file: {output_file}")
     return df["v.segm"]
 
-def TCRDist():
-    tcr_repertoire_alpha = TCRrep(
-        cell_df=df,
-        organism='human',  # 或 'mouse'，根据您的数据集
-        chains=['alpha'],  # 或 'beta'，根据您的数据集
-        db_file='tcrdist/db/mouse_a_beta_db.tsv',  # 或 'human_beta_db.tsv'，根据您的数据集
-    )
+#One-hot encoding： Encoding of categorical variables can be readily implemented using Pandas' get_dummies function.
+def OH_Encoding(data):
+    data = data.astype(str)
+    one_hot_encoded = pd.get_dummies(data)
+    print(one_hot_encoded)
 
-    # 计算基因片段相似性
-    tcr_repertoire_alpha.compute_sparse_rect_distances()
-
-    # 获取基因片段距离矩阵
-    distances_matrix = tcr_repertoire_alpha.rw_beta.divergence
-
-    # distances_matrix现在包含了基因片段之间的相似性/距离信息
-    print(distances_matrix)
-
+#Word embedding model: Represents words as low-dimensional vectors with semantic information
 def WE_Encoding(data):
-    # 创建一个嵌入层
-    embedding_dim = 2  # 嵌入向量的维度
+    # Create an embedding layer
+    embedding_dim = 2
     embedding_layer = tf.keras.layers.Embedding(input_dim=len(set(data)), output_dim=embedding_dim)
 
-    # 将分类变量转换为整数编码
+    # Convert categorical variables to integer encoding
     label_encoder = LabelEncoder()
     encoded_data = label_encoder.fit_transform(data)
 
-    # 将整数编码的数据作为嵌入层的输入
+    # Taking integer-encoded data as input to the embedding layer
     embedded_data = embedding_layer(tf.constant(encoded_data))
     print(embedded_data.numpy())
 
+#Tokenizer: Transform unprocessed text into an integer or other numeric representation that the model can understand.
+def TK_Encoding(data):
+    # Initialize the tokenizer, which refers to a pre-trained model based on the BERT model.
+    data = data.astype(str)
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+    # Encode string using tokenizer
+    encoded_inputs = tokenizer(list(data), padding=True, truncation=True, return_tensors="pt")
+    print(encoded_inputs)
+
+#Transformer: The input sequence first goes through the embedding layer, then it goes through the Transformer encoder to extract features, and lastly the fully connected layer outputs the prediction result.
+#In parallel, back propagation optimizes parameters while forward propagation computes the loss.
 class Standard_Dataset(Dataset):
     def __init__(self, data, char_to_idx, max_seq_length):
         self.data = data
@@ -71,7 +70,6 @@ class Standard_Dataset(Dataset):
     def __getitem__(self, idx):
         sequence = self.data[idx]
         sequence_idx = [self.char_to_idx[char] for char in sequence if char in self.char_to_idx]
-        # 如果序列长度不够，则进行填充
         sequence_idx += [0] * (self.max_seq_length - len(sequence_idx))
         return torch.tensor(sequence_idx)
 
@@ -111,6 +109,22 @@ def Transformer(data):
 
 if __name__ == '__main__':
     Vsegm = readdata()
-    WE_Encoding(Vsegm)
-    Transformer(Vsegm)
-    #TCRDist()
+    while True:
+        x = input("input a number for encoding method! 1 for one-hot, 2 for Word Embedding, 3 for Tokenizer, 4 for Transformer, 5 for quit: ")
+        x = int(x)
+        if x == 1:
+            OH_Encoding(Vsegm)
+            print("Finished")
+        elif x == 2:
+            WE_Encoding(Vsegm)
+            print("Finished")
+        elif x == 3:
+            TK_Encoding(Vsegm)
+            print("Finished")
+        elif x == 4:
+            Transformer(Vsegm)
+            print("Finished")
+        elif x == 5:
+            break
+        else:
+            print("Invalid input!")
