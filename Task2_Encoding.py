@@ -28,13 +28,13 @@ def readdata():
     print(f"DataFrame saved as CSV file: {output_file}")
     return df["v.segm"]
 
-#One-hot encoding： Encoding of categorical variables can be readily implemented using Pandas' get_dummies function.
+# One-hot encoding： Encoding of categorical variables can be readily implemented using Pandas' get_dummies function.
 def OH_Encoding(data):
     data = data.astype(str)
     one_hot_encoded = pd.get_dummies(data)
     print(one_hot_encoded)
 
-#Word embedding model: Represents words as low-dimensional vectors with semantic information
+# Word embedding model: Represents words as low-dimensional vectors with semantic information
 def WE_Encoding(data):
     # Create an embedding layer
     embedding_dim = 2
@@ -48,7 +48,7 @@ def WE_Encoding(data):
     embedded_data = embedding_layer(tf.constant(encoded_data))
     print(embedded_data.numpy())
 
-#Tokenizer: Transform unprocessed text into an integer or other numeric representation that the model can understand.
+# Tokenizer: Transform unprocessed text into an integer or other numeric representation that the model can understand.
 def TK_Encoding(data):
     # Initialize the tokenizer, which refers to a pre-trained model based on the BERT model.
     data = data.astype(str)
@@ -58,8 +58,8 @@ def TK_Encoding(data):
     encoded_inputs = tokenizer(list(data), padding=True, truncation=True, return_tensors="pt")
     print(encoded_inputs)
 
-#Transformer: The input sequence first goes through the embedding layer, then it goes through the Transformer encoder to extract features, and lastly the fully connected layer outputs the prediction result.
-#In parallel, back propagation optimizes parameters while forward propagation computes the loss.
+# Transformer: The input sequence first goes through the embedding layer, then it goes through the Transformer encoder to extract features, and lastly the fully connected layer outputs the prediction result.
+# In parallel, back propagation optimizes parameters while forward propagation computes the loss.
 class Standard_Dataset(Dataset):
     def __init__(self, data, char_to_idx, max_seq_length):
         self.data = data
