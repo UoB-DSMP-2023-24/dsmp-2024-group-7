@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
 from tcrdist.repertoire import TCRrep
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
@@ -13,21 +14,14 @@ import matplotlib.pyplot as plt
 
 def TCR_Dist(dfxa, dfxb):
     '''
-     在 tcrdist 包中，Random Walk 距离是一种用于衡量 TCR 之间相似性的方法之一。
-     它是基于 TCR 序列之间的最短路径数量计算得到的，反映了 TCR 之间的结构和序列相似性。
+     In the tcrdist package, the Random Walk distance is one of the methods used to measure the similarity between TCRs.
+     It is calculated based on the number of shortest paths between TCR sequences and reflects the structural and sequence similarity between TCRs.
 
-     在上述代码中，tr_a 是一个 TCRrep 对象，通过设置 compute_distances=False 参数来禁用自动计算距离。
-     然后调用 compute_sparse_rect_distances 方法手动计算阿尔法链之间的距离，并将结果存储在 rw_alpha 属性中。
-     最后打印 tr_a.rw_alpha 可以获取这个距离矩阵。
-     '''
-    dfxa_first_100 = dfxa.iloc[:100]
-    dfxb_first_100 = dfxb.iloc[:100]
-    # dfx = pd.merge(dfxa, dfxb, on='complex.id', suffixes=('_alpha', '_beta'))
-    # cdr3_a = dfx['cdr3_a_aa']
-    # cdr3_b = dfx['cdr3_b_aa']
-    # dfx_first_100 = dfx.iloc[:10]
-
-    tr_a = TCRrep(cell_df = dfxa_first_100,
+     In the above code, tr_a is a TCRrep object that disables the automatic calculation of distances by setting the compute_distances=False parameter.
+     Then the compute_sparse_rect_distances method is called to manually compute the distances between alpha chains and store the results in the rw_alpha property.
+     This distance matrix can be obtained by printing tr_a.rw_alpha at the end.
+    '''
+    tr_a = TCRrep(cell_df = dfxa,
                   organism = 'human',
                   chains = ['alpha'],
                   db_file = 'alphabeta_gammadelta_db.tsv',
@@ -36,49 +30,12 @@ def TCR_Dist(dfxa, dfxb):
     tr_a.compute_sparse_rect_distances(radius=50, chunk_size=100)
     return tr_a.rw_alpha
 
-'''
-import pandas as pd
-from tcrdist.repertoire import TCRrep
-
-# 读取数据文件
-chunk_size = 100000  # 定义每个块的大小
-chunks = pd.read_csv("vdjdb.txt", delimiter='\t', chunksize=chunk_size)
-
-# 创建TCRrep对象的列表
-tr_a_list = []
-
-# 逐块处理数据
-for chunk in chunks:
-    # 提取所需列
-    chunk = chunk[['complex.id', 'gene', 'cdr3', 'v.segm', 'j.segm', 'species', 'mhc.a', 'mhc.b', 'antigen.epitope', 'antigen.gene']]
-
-    # 分别提取阿尔法链和贝塔链数据
-    df_alpha = chunk[chunk['gene'] == 'TRA'].rename(columns={'cdr3': 'cdr3_a_aa', 'v.segm': 'v_a_gene', 'j.segm': 'j_a_gene','antigen.epitope':'epitope'})
-    df_beta = chunk[chunk['gene'] == 'TRB'].rename(columns={'cdr3': 'cdr3_b_aa', 'v.segm': 'v_b_gene', 'j.segm': 'j_b_gene','antigen.epitope':'epitope'})
-
-    # 合并阿尔法链和贝塔链数据
-    dfx = pd.merge(df_alpha, df_beta, on='complex.id', suffixes=('_alpha', '_beta'))
-
-    # 创建TCRrep对象
-    tr_a = TCRrep(cell_df=dfx,
-                  organism='human',
-                  chains=['alpha', 'beta'],
-                  db_file='alphabeta_gammadelta_db.tsv',
-                  compute_distances=False)
-    
-    # 将创建的TCRrep对象添加到列表中
-    tr_a_list.append(tr_a)
-
-# 合并所有的TCRrep对象
-tr_a_combined = TCRrep.merge(*tr_a_list)
-'''
-
 def SVD_Reduction(mx):
     '''
-        # PCA降维只支持使用 "arpack" 求解器对稀疏输入进行处理，而我在这里传递了 "auto"。这可能导致了错误。
-        # 为了解决这个问题，可以考虑使用 TruncatedSVD 类来代替 PCA，因为它专门用于处理稀疏矩阵。
+      PCA downscaling is only supported for sparse inputs using the "arpack" solver, and I'm passing "auto" here. This may have resulted in an error.
+      To work around this, consider using the TruncatedSVD class instead of PCA, as it is specifically designed to work with sparse matrices.
     '''
-    svd = TruncatedSVD(n_components=2)
+    svd = TruncatedSVD(n_components = 2)
     data_ret = svd.fit_transform(mx)
 
     # Visualization
@@ -87,7 +44,30 @@ def SVD_Reduction(mx):
     plt.ylabel('SVD Component 2')
     plt.title('SVD Dimensionality Reduction')
     plt.show()
+
     return data_ret
+
+def Combined_Reduction(mx, df_ab):
+    '''
+     first downscaled to 50 dimensions using SVD and then downscaled to 2 dimensions using SVD to achieve greater efficiency.
+    '''
+    svd = TruncatedSVD(n_components = 50)
+    reduced_mx = svd.fit_transform(mx)
+    explained_variance_ratio = svd.explained_variance_ratio_
+
+    pca = PCA(n_components = 2)
+    pca_mx = pca.fit_transform(reduced_mx)
+
+    # Visualization
+    fig, ax = plt.subplots(1, 1, figsize = (15, 8))
+    sns.scatterplot(x = pca_mx[:, 0], y = pca_mx[:, 1], hue = df_ab['epitope'], ax = ax)
+    ax.set_xlabel('Feature 1')
+    ax.set_ylabel('Feature 2')
+    ax.set_title('Visualization of the dimensional reduction')
+    ax.legend(labels = df_ab['antigen.gene'].unique()[:30], title = 'Antigen Gene')
+    plt.show()
+
+    return pca_mx
 
 def K_MEANS(mx):
     kmeans = KMeans(n_clusters = 5)
@@ -130,6 +110,7 @@ def Spectral(mx):
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = silhouette_score(distances, clusters)
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(distances, clusters)
     return silhouette_avg, calinski_harabasz_avg
@@ -137,8 +118,8 @@ def Spectral(mx):
 def DB_SCAN(mx):
     mx[mx < 0] = 0
     distances = pairwise_distances(mx, metric='euclidean')
-    eps = 0.5  # 领域半径
-    min_samples = 5  # 最小样本数
+    eps = 0.5  # field radius
+    min_samples = 5  # minimum sample size
     dbscan = DBSCAN(eps = eps, min_samples = min_samples, metric = 'precomputed')
     clusters = dbscan.fit_predict(distances)
 
@@ -152,12 +133,13 @@ def DB_SCAN(mx):
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = silhouette_score(distances, clusters)
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(distances, clusters)
     return silhouette_avg, calinski_harabasz_avg
 
 def AHC(mx):
-    n_clusters = 5  # 聚类数量
+    n_clusters = 5  # number of clusters
     agglomerative_clustering = AgglomerativeClustering(n_clusters=n_clusters, linkage='average')
     clusters = agglomerative_clustering.fit_predict(mx)
 
@@ -171,6 +153,7 @@ def AHC(mx):
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = silhouette_score(mx, clusters)
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(mx, clusters)
     return silhouette_avg, calinski_harabasz_avg
@@ -200,15 +183,24 @@ if __name__ == '__main__':
     # print(df_beta.info())
     # print(df.info())
 
+    # try to test on a certain number of data
+    # df_alpha = df_alpha.iloc[:100]
+    # df_beta = df_beta.iloc[:100]
+
     # calculate distance
     distance_matrix = TCR_Dist(df_alpha, df_beta)
     print(distance_matrix)
 
+    # Combined dimensionality reduction
+    data_reduced = Combined_Reduction(distance_matrix, df_alpha)
+    print(data_reduced)
+
     # TruncatedSVD dimensionality reduction
-    data_reduced = SVD_Reduction(distance_matrix)
+    # data_reduced = SVD_Reduction(distance_matrix)
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = []
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = []
 
