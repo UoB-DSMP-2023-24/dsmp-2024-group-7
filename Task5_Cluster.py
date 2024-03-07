@@ -4,6 +4,8 @@ import seaborn as sns
 from tcrdist.repertoire import TCRrep
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
+from sklearn.manifold import TSNE
+from umap import UMAP
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from sklearn.cluster import SpectralClustering
@@ -27,7 +29,7 @@ def TCR_Dist(dfxa, dfxb):
                   db_file = 'alphabeta_gammadelta_db.tsv',
                   compute_distances = False)
     tr_a.cpus = 2
-    tr_a.compute_sparse_rect_distances(radius=50, chunk_size=100)
+    tr_a.compute_sparse_rect_distances(radius = 50, chunk_size = 100)
     return tr_a.rw_alpha
 
 def SVD_Reduction(mx):
@@ -55,19 +57,28 @@ def Combined_Reduction(mx, df_ab):
     reduced_mx = svd.fit_transform(mx)
     explained_variance_ratio = svd.explained_variance_ratio_
 
-    pca = PCA(n_components = 2)
-    pca_mx = pca.fit_transform(reduced_mx)
+    # tsne = TSNE(n_components = 2, random_state = 42)
+    # A_tsne = tsne.fit_transform(reduced_mx)
+    # B_tsne = tsne.fit_transform(reduced_mx)
+
+    # pca = PCA(n_components = 2)
+    # pca_mx = pca.fit_transform(reduced_mx)
+
+
+    umap = UMAP(n_components = 2, random_state = 42)
+    A_umap = umap.fit_transform(reduced_mx)
+    B_umap = umap.fit_transform(reduced_mx)
 
     # Visualization
     fig, ax = plt.subplots(1, 1, figsize = (15, 8))
-    sns.scatterplot(x = pca_mx[:, 0], y = pca_mx[:, 1], hue = df_ab['epitope'], ax = ax)
+    sns.scatterplot(x = A_umap[:, 0], y = A_umap[:, 1], hue = df_ab['epitope'], ax = ax)
     ax.set_xlabel('Feature 1')
     ax.set_ylabel('Feature 2')
     ax.set_title('Visualization of the dimensional reduction')
     ax.legend(labels = df_ab['antigen.gene'].unique()[:30], title = 'Antigen Gene')
     plt.show()
 
-    return pca_mx
+    return A_umap
 
 def K_MEANS(mx):
     kmeans = KMeans(n_clusters = 5)
@@ -117,18 +128,18 @@ def Spectral(mx):
 
 def DB_SCAN(mx):
     mx[mx < 0] = 0
-    distances = pairwise_distances(mx, metric='euclidean')
+    distances = pairwise_distances(mx, metric = 'euclidean')
     eps = 0.5  # field radius
     min_samples = 5  # minimum sample size
     dbscan = DBSCAN(eps = eps, min_samples = min_samples, metric = 'precomputed')
     clusters = dbscan.fit_predict(distances)
 
     # Visualization
-    plt.scatter(distances[:, 0], distances[:, 1], c = clusters, cmap='viridis')
+    plt.scatter(distances[:, 0], distances[:, 1], c = clusters, cmap = 'viridis')
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('DBSCAN Clustering')
-    plt.colorbar(label='Cluster')
+    plt.colorbar(label = 'Cluster')
     plt.show()
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
@@ -184,8 +195,8 @@ if __name__ == '__main__':
     # print(df.info())
 
     # try to test on a certain number of data
-    # df_alpha = df_alpha.iloc[:100]
-    # df_beta = df_beta.iloc[:100]
+    #df_alpha = df_alpha.iloc[:100]
+    #df_beta = df_beta.iloc[:100]
 
     # calculate distance
     distance_matrix = TCR_Dist(df_alpha, df_beta)
@@ -203,6 +214,7 @@ if __name__ == '__main__':
 
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = []
+
 
     # K-Means Clustering
     ret1, ret2 = K_MEANS(data_reduced)
