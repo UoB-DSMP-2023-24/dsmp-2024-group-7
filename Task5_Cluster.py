@@ -57,9 +57,9 @@ def Combined_Reduction(mx, df_ab):
     reduced_mx = svd.fit_transform(mx)
     explained_variance_ratio = svd.explained_variance_ratio_
 
-    # tsne = TSNE(n_components = 2, random_state = 42)
-    # A_tsne = tsne.fit_transform(reduced_mx)
-    # B_tsne = tsne.fit_transform(reduced_mx)
+    #tsne = TSNE(n_components = 2, random_state = 42)
+    #A_tsne = tsne.fit_transform(reduced_mx)
+    #B_tsne = tsne.fit_transform(reduced_mx)
 
     # pca = PCA(n_components = 2)
     # pca_mx = pca.fit_transform(reduced_mx)
@@ -67,7 +67,7 @@ def Combined_Reduction(mx, df_ab):
 
     umap = UMAP(n_components = 2, random_state = 42)
     A_umap = umap.fit_transform(reduced_mx)
-    B_umap = umap.fit_transform(reduced_mx)
+    # B_umap = umap.fit_transform(reduced_mx)
 
     # Visualization
     fig, ax = plt.subplots(1, 1, figsize = (15, 8))
@@ -144,9 +144,10 @@ def DB_SCAN(mx):
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = silhouette_score(distances, clusters)
-
+    print("!~~")
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(distances, clusters)
+    print("~~~")
     return silhouette_avg, calinski_harabasz_avg
 
 def AHC(mx):
@@ -195,8 +196,8 @@ if __name__ == '__main__':
     # print(df.info())
 
     # try to test on a certain number of data
-    #df_alpha = df_alpha.iloc[:100]
-    #df_beta = df_beta.iloc[:100]
+    df_alpha = df_alpha.iloc[:100]
+    df_beta = df_beta.iloc[:100]
 
     # calculate distance
     distance_matrix = TCR_Dist(df_alpha, df_beta)
@@ -204,7 +205,7 @@ if __name__ == '__main__':
 
     # Combined dimensionality reduction
     data_reduced = Combined_Reduction(distance_matrix, df_alpha)
-    print(data_reduced)
+    #(data_reduced)
 
     # TruncatedSVD dimensionality reduction
     # data_reduced = SVD_Reduction(distance_matrix)
@@ -222,9 +223,9 @@ if __name__ == '__main__':
     calinski_harabasz_avg. append(ret2)
 
     # Spectral clustering
-    ret1, ret2 = Spectral(data_reduced)
-    silhouette_avg.append(ret1)
-    calinski_harabasz_avg.append(ret2)
+    # ret1, ret2 = Spectral(data_reduced)
+    # silhouette_avg.append(ret1)
+    # calinski_harabasz_avg.append(ret2)
 
     # DBSCAN clustering
     ret1, ret2 = DB_SCAN(data_reduced)
@@ -232,19 +233,53 @@ if __name__ == '__main__':
     calinski_harabasz_avg.append(ret2)
 
     # Agglomerative Hierarchical Clustering凝聚层次聚类
-    ret1, ret2 = AHC(data_reduced)
-    silhouette_avg.append(ret1)
-    calinski_harabasz_avg.append(ret2)
+    # ret1, ret2 = AHC(data_reduced)
+    # silhouette_avg.append(ret1)
+    # calinski_harabasz_avg.append(ret2)
 
     print("K_Means Clustering:")
     print("Silhouette Score:", silhouette_avg[0])
     print("Calinski-Harabasz Index:", calinski_harabasz_avg[0])
-    print("Spectral Clustering:")
+    #print("Spectral Clustering:")
+    #print("Silhouette Score:", silhouette_avg[1])
+    #print("Calinski-Harabasz Index:", calinski_harabasz_avg[1])
+    print("DBSCAN Clustering:")
     print("Silhouette Score:", silhouette_avg[1])
     print("Calinski-Harabasz Index:", calinski_harabasz_avg[1])
-    print("DBSCAN Clustering:")
-    print("Silhouette Score:", silhouette_avg[2])
-    print("Calinski-Harabasz Index:", calinski_harabasz_avg[2])
-    print("Agglomerative Hierarchical Clustering:")
-    print("Silhouette Score:", silhouette_avg[3])
-    print("Calinski-Harabasz Index:", calinski_harabasz_avg[3])
+    #print("Agglomerative Hierarchical Clustering:")
+    #print("Silhouette Score:", silhouette_avg[3])
+    #print("Calinski-Harabasz Index:", calinski_harabasz_avg[3])
+
+'''
+SVD+UMAP:
+K_Means Clustering:
+Silhouette Score: 0.57533884
+Calinski-Harabasz Index: 1227.9641350464085
+DBSCAN Clustering:
+Silhouette Score: 0.5315071
+Calinski-Harabasz Index: 288.94587519178236
+all:
+K_Means Clustering:
+Silhouette Score: 0.3286636
+Calinski-Harabasz Index: 20815.35727377217
+DBSCAN Clustering:
+Silhouette Score: -0.1631865
+Calinski-Harabasz Index: 391.1579697407055
+
+SVD+TSNE:
+K_Means Clustering:
+Silhouette Score: 0.3478193
+Calinski-Harabasz Index: 69.621394143135
+DBSCAN Clustering:
+Silhouette Score: 0.11649117
+Calinski-Harabasz Index: 22.948673748642335
+all:
+K_Means Clustering:
+Silhouette Score: 0.34258187
+Calinski-Harabasz Index: 25088.480705750433
+DBSCAN Clustering:
+Silhouette Score: -0.5337857
+Calinski-Harabasz Index: 71.7691637787613
+
+
+'''
