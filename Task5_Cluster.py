@@ -14,6 +14,36 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
 
+def get_matrix(df_alpha,df_beta,species):
+#     define a function to get the chain matrix
+    tr_a = TCRrep(cell_df = df_alpha, # get the alpha chain matrix
+            organism = species,
+            chains = ['alpha'],
+            db_file = 'alphabeta_gammadelta_db.tsv',
+            compute_distances=False)
+    tr_a.cpus=2
+    tr_a.compute_sparse_rect_distances(radius = 50, chunk_size = 100)
+    tr_b = TCRrep(cell_df = df_beta,  # get the beta chain matrix
+                organism = species,
+                chains = ['beta'],
+                db_file = 'alphabeta_gammadelta_db.tsv',
+                compute_distances=False)
+    tr_b.cpus=2
+    tr_b.compute_sparse_rect_distances(radius = 50, chunk_size = 100)
+    df_merge = pd.merge(df_alpha, df_beta, on='complex.id') # combine alpha chain and beta chain
+    df_merge.drop(['species_y'], axis=1, inplace=True) # drop extra column
+    df_merge.drop(['antigen.species_y'], axis=1, inplace=True)
+    df_merge.rename(columns={'antigen.species_x': 'antigen.species'}, inplace=True)
+    tr = TCRrep(cell_df = df_merge, # get the combined chain matrix
+            organism = species,
+            chains = ['alpha','beta'],
+            db_file = 'alphabeta_gammadelta_db.tsv',
+            compute_distances=False)
+    tr.cpus=2
+    tr.compute_sparse_rect_distances(radius = 50, chunk_size = 100)
+    combined_rw_distance = tr.rw_alpha + tr.rw_beta # add up the output of the combined chain result
+    return tr_a.rw_alpha,tr_b.rw_beta,combined_rw_distance,df_merge
+
 def TCR_Dist(dfxa, dfxb):
     '''
      In the tcrdist package, the Random Walk distance is one of the methods used to measure the similarity between TCRs.
@@ -57,13 +87,20 @@ def Combined_Reduction(mx, df_ab):
     reduced_mx = svd.fit_transform(mx)
     explained_variance_ratio = svd.explained_variance_ratio_
 
-    #tsne = TSNE(n_components = 2, random_state = 42)
-    #A_tsne = tsne.fit_transform(reduced_mx)
+    '''
+    tsne = TSNE(n_components = 2, random_state = 42)
+    A_tsne = tsne.fit_transform(reduced_mx)
     #B_tsne = tsne.fit_transform(reduced_mx)
 
-    # pca = PCA(n_components = 2)
-    # pca_mx = pca.fit_transform(reduced_mx)
-
+    # Visualization
+    fig, ax = plt.subplots(1, 1, figsize=(15, 8))
+    sns.scatterplot(x=A_tsne[:, 0], y=A_tsne[:, 1], hue=df_ab['epitope_y'], ax=ax)
+    ax.set_xlabel('Feature 1')
+    ax.set_ylabel('Feature 2')
+    ax.set_title('Visualization of the dimensional reduction')
+    ax.legend(labels=df_ab['antigen.gene_y'].unique()[:30], title='Antigen Gene')
+    plt.show()
+    '''
 
     umap = UMAP(n_components = 2, random_state = 42)
     A_umap = umap.fit_transform(reduced_mx)
@@ -71,12 +108,13 @@ def Combined_Reduction(mx, df_ab):
 
     # Visualization
     fig, ax = plt.subplots(1, 1, figsize = (15, 8))
-    sns.scatterplot(x = A_umap[:, 0], y = A_umap[:, 1], hue = df_ab['epitope'], ax = ax)
+    sns.scatterplot(x = A_umap[:, 0], y = A_umap[:, 1], hue = df_ab['epitope_y'], ax = ax)
     ax.set_xlabel('Feature 1')
     ax.set_ylabel('Feature 2')
     ax.set_title('Visualization of the dimensional reduction')
-    ax.legend(labels = df_ab['antigen.gene'].unique()[:30], title = 'Antigen Gene')
+    ax.legend(labels = df_ab['antigen.gene_y'].unique()[:30], title = 'Antigen Gene')
     plt.show()
+
 
     return A_umap
 
@@ -85,7 +123,7 @@ def K_MEANS(mx):
     clusters = kmeans.fit_predict(mx)
 
     # Visualization
-    plt.scatter(mx[:, 0], mx[:, 1], c = clusters, cmap='viridis')
+    plt.scatter(mx[:, 0], mx[:, 1], c = clusters, cmap='viridis', s=10)
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('KMeans Clustering')
@@ -96,6 +134,7 @@ def K_MEANS(mx):
     silhouette_avg = silhouette_score(mx, clusters)
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(mx, clusters)
+    print(clusters)
     return silhouette_avg, calinski_harabasz_avg
 
 def Spectral(mx):
@@ -112,7 +151,7 @@ def Spectral(mx):
     clusters = spectral_clustering.fit_predict(distances)
 
     # Visualization
-    plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis')
+    plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis', s=10)
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('Spectral Clustering')
@@ -135,7 +174,7 @@ def DB_SCAN(mx):
     clusters = dbscan.fit_predict(distances)
 
     # Visualization
-    plt.scatter(distances[:, 0], distances[:, 1], c = clusters, cmap = 'viridis')
+    plt.scatter(distances[:, 0], distances[:, 1], c = clusters, cmap = 'viridis', s=10)
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('DBSCAN Clustering')
@@ -144,10 +183,10 @@ def DB_SCAN(mx):
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = silhouette_score(distances, clusters)
-    print("!~~")
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = calinski_harabasz_score(distances, clusters)
-    print("~~~")
+
     return silhouette_avg, calinski_harabasz_avg
 
 def AHC(mx):
@@ -156,7 +195,7 @@ def AHC(mx):
     clusters = agglomerative_clustering.fit_predict(mx)
 
     # Visualization
-    plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis')
+    plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis', s=10)
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('Agglomerative Hierarchical Clustering')
@@ -173,49 +212,48 @@ def AHC(mx):
 if __name__ == '__main__':
     # Read the entire file into a DataFrame
     df = pd.read_csv("../vdjdb.txt", delimiter='\t')  # Assuming the file is tab-delimited, adjust if needed
-    df = df[['complex.id', 'gene', 'cdr3', 'v.segm', 'j.segm', 'species', 'mhc.a', 'mhc.b', 'antigen.epitope', 'antigen.gene']]
-
-    df_alpha = df[df['gene'] == 'TRA'].rename(columns={'cdr3': 'cdr3_a_aa', 'v.segm': 'v_a_gene', 'j.segm': 'j_a_gene','antigen.epitope':'epitope'})
-    df_beta = df[df['gene'] == 'TRB'].rename(columns={'cdr3': 'cdr3_b_aa', 'v.segm': 'v_b_gene', 'j.segm': 'j_b_gene','antigen.epitope':'epitope'})
-
-    df = df[~df['species'].isin(['MusMusculus', 'MacacaMulatta'])]
-    df_alpha = df_alpha[~df_alpha['species'].isin(['MusMusculus', 'MacacaMulatta'])]
-    df_beta = df_beta[~df_beta['species'].isin(['MusMusculus', 'MacacaMulatta'])]
-
-    # print(df_alpha['species'].unique())
-    # print(df_alpha.info())
-
-    df_alpha = df_alpha.dropna()
-    df_beta = df_beta.dropna()
-    df = df.dropna()
-    df_alpha = df_alpha.drop_duplicates()
-    df_beta = df_beta.drop_duplicates()
     df = df.drop_duplicates()
-    # print(df_alpha.info())
-    # print(df_beta.info())
-    # print(df.info())
+    df = df.dropna()
+    df = df[df['complex.id'] != 0]
+    df = df[df['vdjdb.score'] != 0]
+    df = df[['complex.id', 'gene', 'cdr3', 'v.segm', 'j.segm', 'species', 'antigen.epitope', 'antigen.gene', 'antigen.species']]
+    # data classificition
+    df_homo = df[~df['species'].isin(['MacacaMulatta', 'MusMusculus'])]
+    df_homo_alpha = df_homo[df_homo['gene'] == 'TRA'].rename(
+        columns={'cdr3': 'cdr3_a_aa', 'v.segm': 'v_a_gene', 'j.segm': 'j_a_gene', 'antigen.epitope': 'epitope'})
+    df_homo_beta = df_homo[df_homo['gene'] == 'TRB'].rename(
+        columns={'cdr3': 'cdr3_b_aa', 'v.segm': 'v_b_gene', 'j.segm': 'j_b_gene', 'antigen.epitope': 'epitope'})
 
-    # try to test on a certain number of data
-    df_alpha = df_alpha.iloc[:100]
-    df_beta = df_beta.iloc[:100]
+    df_mouse = df[~df['species'].isin(['MacacaMulatta', 'HomoSapiens'])]
+    df_mouse_alpha = df_mouse[df_mouse['gene'] == 'TRA'].rename(
+        columns={'cdr3': 'cdr3_a_aa', 'v.segm': 'v_a_gene', 'j.segm': 'j_a_gene', 'antigen.epitope': 'epitope'})
+    df_mouse_beta = df_mouse[df_mouse['gene'] == 'TRB'].rename(
+        columns={'cdr3': 'cdr3_b_aa', 'v.segm': 'v_b_gene', 'j.segm': 'j_b_gene', 'antigen.epitope': 'epitope'})
 
-    # calculate distance
-    distance_matrix = TCR_Dist(df_alpha, df_beta)
-    print(distance_matrix)
+    df_monkey = df[~df['species'].isin(['MusMusculus', 'HomoSapiens'])]
+    df_monkey_alpha = df_mouse[df_mouse['gene'] == 'TRA'].rename(
+        columns={'cdr3': 'cdr3_a_aa', 'v.segm': 'v_a_gene', 'j.segm': 'j_a_gene', 'antigen.epitope': 'epitope'})
+    df_monkey_beta = df_mouse[df_mouse['gene'] == 'TRB'].rename(
+        columns={'cdr3': 'cdr3_b_aa', 'v.segm': 'v_b_gene', 'j.segm': 'j_b_gene', 'antigen.epitope': 'epitope'})
+
+    # calculate distance matrix
+    homo_alpha_matrix, homo_beta_matrix, homo_combined_matrix, df_homo_combined = get_matrix(df_homo_alpha,
+                                                                                             df_homo_beta, 'human')
+    mouse_alpha_matrix, mouse_beta_matrix, mouse_combined_matrix, df_mouse_combined = get_matrix(df_mouse_alpha,
+                                                                                                 df_mouse_beta, 'mouse')
+
+    print(df_mouse_combined['antigen.species_y'].unique())
 
     # Combined dimensionality reduction
-    data_reduced = Combined_Reduction(distance_matrix, df_alpha)
+    # df.iloc[:100]
+    data_reduced = Combined_Reduction(mouse_combined_matrix, df_mouse_combined)
     #(data_reduced)
-
-    # TruncatedSVD dimensionality reduction
-    # data_reduced = SVD_Reduction(distance_matrix)
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     silhouette_avg = []
 
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     calinski_harabasz_avg = []
-
 
     # K-Means Clustering
     ret1, ret2 = K_MEANS(data_reduced)
@@ -228,9 +266,9 @@ if __name__ == '__main__':
     # calinski_harabasz_avg.append(ret2)
 
     # DBSCAN clustering
-    ret1, ret2 = DB_SCAN(data_reduced)
-    silhouette_avg.append(ret1)
-    calinski_harabasz_avg.append(ret2)
+    # ret1, ret2 = DB_SCAN(data_reduced)
+    # silhouette_avg.append(ret1)
+    # calinski_harabasz_avg.append(ret2)
 
     # Agglomerative Hierarchical Clustering凝聚层次聚类
     # ret1, ret2 = AHC(data_reduced)
@@ -243,13 +281,14 @@ if __name__ == '__main__':
     #print("Spectral Clustering:")
     #print("Silhouette Score:", silhouette_avg[1])
     #print("Calinski-Harabasz Index:", calinski_harabasz_avg[1])
+    '''
     print("DBSCAN Clustering:")
     print("Silhouette Score:", silhouette_avg[1])
     print("Calinski-Harabasz Index:", calinski_harabasz_avg[1])
-    #print("Agglomerative Hierarchical Clustering:")
-    #print("Silhouette Score:", silhouette_avg[3])
-    #print("Calinski-Harabasz Index:", calinski_harabasz_avg[3])
-
+    print("Agglomerative Hierarchical Clustering:")
+    print("Silhouette Score:", silhouette_avg[2])
+    print("Calinski-Harabasz Index:", calinski_harabasz_avg[2])
+    '''
 '''
 SVD+UMAP:
 K_Means Clustering:
