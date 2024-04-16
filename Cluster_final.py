@@ -5,8 +5,9 @@ from tcrdist.repertoire import TCRrep
 from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score, calinski_harabasz_score
+from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score, fowlkes_mallows_score
 from sklearn.cluster import AgglomerativeClustering
+from sklearn.datasets import make_blobs
 import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 
@@ -82,33 +83,6 @@ def Combined_Reduction(mx, df_ab):
 
     return A_tsne
 
-
-def cluster_matching(true_labels, cluster_labels):
-    num_clusters = len(np.unique(cluster_labels))
-    num_samples = len(true_labels)
-    matching = 0
-
-    for cluster in range(num_clusters):
-        cluster_indices = np.where(cluster_labels == cluster)[0]
-        cluster_labels_in_cluster = true_labels[cluster_indices]
-        most_common_label = np.argmax(np.bincount(cluster_labels_in_cluster))
-        matching += np.sum(cluster_labels_in_cluster == most_common_label)
-
-    return matching / num_samples
-
-def purity(true_labels, cluster_labels):
-    num_clusters = len(np.unique(cluster_labels))
-    num_samples = len(true_labels)
-    purity_score = 0
-
-    for cluster in range(num_clusters):
-        cluster_indices = np.where(cluster_labels == cluster)[0]
-        cluster_labels_in_cluster = true_labels[cluster_indices]
-        most_common_label = np.argmax(np.bincount(cluster_labels_in_cluster))
-        purity_score += np.sum(cluster_labels_in_cluster == most_common_label)
-
-    return purity_score / num_samples
-
 def cluster_metrics(true_labels, cluster_labels):
     num_samples = len(true_labels)
     num_clusters = len(np.unique(cluster_labels))
@@ -153,7 +127,7 @@ def K_MEANS(mx, true_labels):
     )
     plt.show()
 
-    # print(clusters)
+    # Match Rate / Purity
     metrics = cluster_metrics(true_labels, clusters)
     for i, (match_rate, purity) in enumerate(metrics):
         print(f"Cluster {i} - Match Rate: {match_rate}, Purity: {purity}")
@@ -164,9 +138,15 @@ def K_MEANS(mx, true_labels):
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
     print("Calinski-Harabasz Index:", calinski_harabasz_score(mx, clusters))
 
+    # Davies-Bouldin index: Lower Davies-Bouldin index indicates better quality of clustering results(越低越好)
+    print("Davies-Bouldin:", davies_bouldin_score(mx, clusters))
 
-def AHC(mx):
-    n_clusters = 12  # number of clusters
+    # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
+    print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
+
+
+def AHC(mx, true_labels):
+    n_clusters = 11  # number of clusters
     agglomerative_clustering = AgglomerativeClustering(n_clusters = n_clusters, linkage='average')
     clusters = agglomerative_clustering.fit_predict(mx)
 
@@ -192,11 +172,22 @@ def AHC(mx):
     )
     plt.show()
 
+    # Match Rate / Purity
+    metrics = cluster_metrics(true_labels, clusters)
+    for i, (match_rate, purity) in enumerate(metrics):
+        print(f"Cluster {i} - Match Rate: {match_rate}, Purity: {purity}")
+
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
-    silhouette_avg = silhouette_score(mx, clusters)
+    print("Silhouette Score:", silhouette_score(mx, clusters))
+
     # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
-    calinski_harabasz_avg = calinski_harabasz_score(mx, clusters)
-    return silhouette_avg, calinski_harabasz_avg
+    print("Calinski-Harabasz Index:", calinski_harabasz_score(mx, clusters))
+
+    # Davies-Bouldin index: Lower Davies-Bouldin index indicates better quality of clustering results(越低越好)
+    print("Davies-Bouldin:", davies_bouldin_score(mx, clusters))
+
+    # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
+    print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
 
 
 if __name__ == '__main__':
@@ -250,45 +241,40 @@ if __name__ == '__main__':
     K_MEANS(data_reduced, true_labels)
 
     # Agglomerative Hierarchical Clustering凝聚层次聚类
-    #ret1, ret2 = AHC(data_reduced)
-    #silhouette_avg.append(ret1)
-    #calinski_harabasz_avg.append(ret2)
-
-
-    #print("Agglomerative Hierarchical Clustering:")
-    #print("Silhouette Score:", silhouette_avg[1])
-    #print("Calinski-Harabasz Index:", calinski_harabasz_avg[1])
+    AHC(data_reduced, true_labels)
 
 '''
-SVD+UMAP:
-K_Means Clustering:
-Silhouette Score: 0.57533884
-Calinski-Harabasz Index: 1227.9641350464085
-DBSCAN Clustering:
-Silhouette Score: 0.5315071
-Calinski-Harabasz Index: 288.94587519178236
-all:
-K_Means Clustering:
-Silhouette Score: 0.3286636
-Calinski-Harabasz Index: 20815.35727377217
-DBSCAN Clustering:
-Silhouette Score: -0.1631865
-Calinski-Harabasz Index: 391.1579697407055
+Cluster 0 - Match Rate: 0.9875, Purity: 0.9875
+Cluster 1 - Match Rate: 0.4636363636363636, Purity: 0.4636363636363636
+Cluster 2 - Match Rate: 0.9340659340659341, Purity: 0.9340659340659341
+Cluster 3 - Match Rate: 0.55, Purity: 0.55
+Cluster 4 - Match Rate: 0.6304347826086957, Purity: 0.6304347826086957
+Cluster 5 - Match Rate: 0.9078947368421053, Purity: 0.9078947368421053
+Cluster 6 - Match Rate: 0.853448275862069, Purity: 0.853448275862069
+Cluster 7 - Match Rate: 0.9705882352941176, Purity: 0.9705882352941176
+Cluster 8 - Match Rate: 1.0, Purity: 1.0
+Cluster 9 - Match Rate: 0.8823529411764706, Purity: 0.8823529411764706
+Cluster 10 - Match Rate: 0.9322033898305084, Purity: 0.9322033898305084
+Silhouette Score: 0.48569563
+Calinski-Harabasz Index: 1273.2121114958677
+Davies-Bouldin: 0.7038656661881882
+fowlkes_mallows_score: 0.29096532246788254
 
-SVD+TSNE:
-K_Means Clustering:
-Silhouette Score: 0.3478193
-Calinski-Harabasz Index: 69.621394143135
-DBSCAN Clustering:
-Silhouette Score: 0.11649117
-Calinski-Harabasz Index: 22.948673748642335
-all:
-K_Means Clustering:
-Silhouette Score: 0.34258187
-Calinski-Harabasz Index: 25088.480705750433
-DBSCAN Clustering:
-Silhouette Score: -0.5337857
-Calinski-Harabasz Index: 71.7691637787613
+Cluster 0 - Match Rate: 0.5483870967741935, Purity: 0.5483870967741935
+Cluster 1 - Match Rate: 0.4235294117647059, Purity: 0.4235294117647059
+Cluster 2 - Match Rate: 0.9880952380952381, Purity: 0.9880952380952381
+Cluster 3 - Match Rate: 0.9322033898305084, Purity: 0.9322033898305084
+Cluster 4 - Match Rate: 0.9313725490196079, Purity: 0.9313725490196079
+Cluster 5 - Match Rate: 0.9705882352941176, Purity: 0.9705882352941176
+Cluster 6 - Match Rate: 0.9078947368421053, Purity: 0.9078947368421053
+Cluster 7 - Match Rate: 0.5, Purity: 0.5
+Cluster 8 - Match Rate: 0.9883720930232558, Purity: 0.9883720930232558
+Cluster 9 - Match Rate: 1.0, Purity: 1.0
+Cluster 10 - Match Rate: 0.8823529411764706, Purity: 0.8823529411764706
+Silhouette Score: 0.46087584
+Calinski-Harabasz Index: 1103.6600918851234
+Davies-Bouldin: 0.6622617777062516
+fowlkes_mallows_score: 0.31287094498942236
 
 
 '''
