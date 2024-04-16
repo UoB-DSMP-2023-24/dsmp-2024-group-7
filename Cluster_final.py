@@ -73,7 +73,7 @@ def Combined_Reduction(mx, df_ab):
     A_tsne = tsne.fit_transform(reduced_mx)
 
     # Visualization
-    fig, ax = plt.subplots(1, 1, figsize=(15, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     sns.scatterplot(x=A_tsne[:, 0], y=A_tsne[:, 1], hue=df_ab['epitope_y'], ax=ax)
     ax.set_xlabel('Feature 1')
     ax.set_ylabel('Feature 2')
@@ -101,29 +101,42 @@ def cluster_metrics(true_labels, cluster_labels):
 
     return cluster_metrics
 
-def K_MEANS(mx, true_labels):
-    kmeans = KMeans(n_clusters = 11)
+def K_MEANS(mx, true_labels, epitope_x, epitope_y):
+    N_Clusters = len(true_labels.unique())
+    kmeans = KMeans(n_clusters = N_Clusters)
     clusters = kmeans.fit_predict(mx)
+    centers = kmeans.cluster_centers_
+    color_dict = {i: plt.cm.viridis(i / 10) for i in range(11)}
 
     # Visualization
-    plt.scatter(mx[:, 0], mx[:, 1], c = clusters, cmap='viridis', s = 10)
+    plt.subplots(1, 1, figsize=(12, 8))
+    scatter = plt.scatter(mx[:, 0], mx[:, 1], c = clusters, cmap = 'viridis', s = 5)
+    legend1 = plt.legend(*scatter.legend_elements(), title='Clusters', loc = 'upper right')
+    plt.gca().add_artist(legend1)
+    plt.scatter(centers[:, 0], centers[:, 1], c='red', marker='x', s=100)
+
+    extra_labels = [
+        plt.Line2D([0], [0], marker = 'o', color = 'w', markerfacecolor = color_dict[i], markersize = 10, label = f'Cluster {i}')
+        for i in range(N_Clusters)]
+    plt.legend(handles=extra_labels, title = 'Cluster Labels', loc = 'lower right')
+
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('KMeans Clustering')
-    plt.colorbar(label='Cluster')
+    plt.legend()
     plt.show()
 
-    # 计算连接矩阵
+    # Calculate connectivity matrix
     Z = linkage(mx, 'average')
-    # 绘制分类的树状图
+    # Draw a classification tree diagram
     plt.figure(figsize=(10, 5))
     plt.title('Hierarchical Clustering Dendrogram')
     plt.xlabel('Sample Index')
     plt.ylabel('Distance')
     dendrogram(
         Z,
-        leaf_rotation=90.,  # 旋转叶子节点标签的角度
-        leaf_font_size=8.,  # 叶子节点标签字体大小
+        leaf_rotation=90.,
+        leaf_font_size=8.,
     )
     plt.show()
 
@@ -144,31 +157,78 @@ def K_MEANS(mx, true_labels):
     # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
     print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
 
+    # Output the epitope that occurs in each cluster
+    cluster_epitope_x = {i: set() for i in range(N_Clusters)}
+    cluster_epitope_y = {i: set() for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_x):
+        cluster_epitope_x[clusters[i]].add(eptitope)
+    for i, eptitope in enumerate(epitope_y):
+        cluster_epitope_y[clusters[i]].add(eptitope)
 
-def AHC(mx, true_labels):
-    n_clusters = 11  # number of clusters
-    agglomerative_clustering = AgglomerativeClustering(n_clusters = n_clusters, linkage='average')
+    for cluster_id, eptitopes_x in cluster_epitope_x.items():
+        print(f"Cluster {cluster_id} alpha_Eptitopes:", eptitopes_x)
+    for cluster_id, eptitopes_y in cluster_epitope_y.items():
+        print(f"Cluster {cluster_id} beta_Eptitopes:", eptitopes_y)
+
+    # Output the most frequent epitope in each cluster
+    cluster_epitope_x_counts = {i: {} for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_x):
+        if eptitope in cluster_epitope_x_counts[clusters[i]]:
+            cluster_epitope_x_counts[clusters[i]][eptitope] += 1
+        else:
+            cluster_epitope_x_counts[clusters[i]][eptitope] = 1
+
+    for cluster_id, eptitope_counts in cluster_epitope_x_counts.items():
+        max_epitope = max(eptitope_counts, key=eptitope_counts.get)
+        max_count = eptitope_counts[max_epitope]
+        print(f"Cluster {cluster_id} Most Frequent Alpha_Eptitope: {max_epitope} (Count: {max_count})")
+
+    cluster_epitope_y_counts = {i: {} for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_y):
+        if eptitope in cluster_epitope_y_counts[clusters[i]]:
+            cluster_epitope_y_counts[clusters[i]][eptitope] += 1
+        else:
+            cluster_epitope_y_counts[clusters[i]][eptitope] = 1
+
+    for cluster_id, eptitope_counts in cluster_epitope_y_counts.items():
+        max_epitope = max(eptitope_counts, key=eptitope_counts.get)
+        max_count = eptitope_counts[max_epitope]
+        print(f"Cluster {cluster_id} Most Frequent Beta_Eptitope: {max_epitope} (Count: {max_count})")
+
+def AHC(mx, true_labels, epitope_x, epitope_y):
+    N_Clusters = len(true_labels.unique())  # number of clusters
+    agglomerative_clustering = AgglomerativeClustering(n_clusters = N_Clusters, linkage='average')
     clusters = agglomerative_clustering.fit_predict(mx)
+    color_dict = {i: plt.cm.viridis(i / 10) for i in range(11)}
 
     # Visualization
-    plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis', s=10)
+    plt.subplots(1, 1, figsize=(12, 8))
+    scatter = plt.scatter(mx[:, 0], mx[:, 1], c=clusters, cmap='viridis', s=5)
+    legend1 = plt.legend(*scatter.legend_elements(), title='Clusters', loc='upper right')
+    plt.gca().add_artist(legend1)
+
+    extra_labels = [
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_dict[i], markersize=10, label=f'Cluster {i}')
+        for i in range(N_Clusters)]
+    plt.legend(handles=extra_labels, title='Cluster Labels', loc='lower right')
+
     plt.xlabel('SVD Component 1')
     plt.ylabel('SVD Component 2')
     plt.title('Agglomerative Hierarchical Clustering')
-    plt.colorbar(label='Cluster')
+    plt.legend()
     plt.show()
 
-    # 计算连接矩阵
+    # Calculate connectivity matrix
     Z = linkage(mx, 'average')
-    # 绘制分类的树状图
+    # Draw a classification tree diagram
     plt.figure(figsize=(10, 5))
     plt.title('Hierarchical Clustering Dendrogram')
     plt.xlabel('Sample Index')
     plt.ylabel('Distance')
     dendrogram(
         Z,
-        leaf_rotation=90.,  # 旋转叶子节点标签的角度
-        leaf_font_size=8.,  # 叶子节点标签字体大小
+        leaf_rotation=90.,
+        leaf_font_size=8.,
     )
     plt.show()
 
@@ -189,6 +249,43 @@ def AHC(mx, true_labels):
     # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
     print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
 
+    # Output the epitope that occurs in each cluster
+    cluster_epitope_x = {i: set() for i in range(N_Clusters)}
+    cluster_epitope_y = {i: set() for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_x):
+        cluster_epitope_x[clusters[i]].add(eptitope)
+    for i, eptitope in enumerate(epitope_y):
+        cluster_epitope_y[clusters[i]].add(eptitope)
+
+    for cluster_id, eptitopes_x in cluster_epitope_x.items():
+        print(f"Cluster {cluster_id} alpha_Eptitopes:", eptitopes_x)
+    for cluster_id, eptitopes_y in cluster_epitope_y.items():
+        print(f"Cluster {cluster_id} beta_Eptitopes:", eptitopes_y)
+
+    # Output the most frequent epitope in each cluster
+    cluster_epitope_x_counts = {i: {} for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_x):
+        if eptitope in cluster_epitope_x_counts[clusters[i]]:
+            cluster_epitope_x_counts[clusters[i]][eptitope] += 1
+        else:
+            cluster_epitope_x_counts[clusters[i]][eptitope] = 1
+
+    for cluster_id, eptitope_counts in cluster_epitope_x_counts.items():
+        max_epitope = max(eptitope_counts, key=eptitope_counts.get)
+        max_count = eptitope_counts[max_epitope]
+        print(f"Cluster {cluster_id} Most Frequent Alpha_Eptitope: {max_epitope} (Count: {max_count})")
+
+    cluster_epitope_y_counts = {i: {} for i in range(N_Clusters)}
+    for i, eptitope in enumerate(epitope_y):
+        if eptitope in cluster_epitope_y_counts[clusters[i]]:
+            cluster_epitope_y_counts[clusters[i]][eptitope] += 1
+        else:
+            cluster_epitope_y_counts[clusters[i]][eptitope] = 1
+
+    for cluster_id, eptitope_counts in cluster_epitope_y_counts.items():
+        max_epitope = max(eptitope_counts, key=eptitope_counts.get)
+        max_count = eptitope_counts[max_epitope]
+        print(f"Cluster {cluster_id} Most Frequent Beta_Eptitope: {max_epitope} (Count: {max_count})")
 
 if __name__ == '__main__':
     # Read the entire file into a DataFrame
@@ -225,8 +322,10 @@ if __name__ == '__main__':
                                                                                                  df_mouse_beta, 'mouse')
 
     # original gene species tag
-    # true_labels = np.array(df_mouse_combined['antigen.species'].unique())
+    print(np.array(df_mouse_combined.columns))
     true_labels = df_mouse_combined['antigen.species']
+    epitope_x = df_mouse_combined['epitope_x']
+    epitope_y = df_mouse_combined['epitope_y']
 
     # Combined dimensionality reduction
     data_reduced = Combined_Reduction(mouse_combined_matrix, df_mouse_combined)
@@ -238,10 +337,10 @@ if __name__ == '__main__':
     calinski_harabasz_avg = []
 
     # K-Means Clustering
-    K_MEANS(data_reduced, true_labels)
+    K_MEANS(data_reduced, true_labels, epitope_x, epitope_y)
 
     # Agglomerative Hierarchical Clustering凝聚层次聚类
-    AHC(data_reduced, true_labels)
+    AHC(data_reduced, true_labels, epitope_x, epitope_y)
 
 '''
 Cluster 0 - Match Rate: 0.9875, Purity: 0.9875
