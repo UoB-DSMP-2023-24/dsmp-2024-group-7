@@ -143,7 +143,7 @@ def K_MEANS(mx, true_labels, epitope_x, epitope_y):
     # Match Rate / Purity
     metrics = cluster_metrics(true_labels, clusters)
     for i, (match_rate, purity) in enumerate(metrics):
-        print(f"Cluster {i} - Match Rate: {match_rate}, Purity: {purity}")
+        print(f"Cluster {i} - Purity: {purity}")
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     print("Silhouette Score:", silhouette_score(mx, clusters))
@@ -157,6 +157,7 @@ def K_MEANS(mx, true_labels, epitope_x, epitope_y):
     # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
     print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
 
+    '''
     # Output the epitope that occurs in each cluster
     cluster_epitope_x = {i: set() for i in range(N_Clusters)}
     cluster_epitope_y = {i: set() for i in range(N_Clusters)}
@@ -169,6 +170,7 @@ def K_MEANS(mx, true_labels, epitope_x, epitope_y):
         print(f"Cluster {cluster_id} alpha_Eptitopes:", eptitopes_x)
     for cluster_id, eptitopes_y in cluster_epitope_y.items():
         print(f"Cluster {cluster_id} beta_Eptitopes:", eptitopes_y)
+    '''
 
     # Output the most frequent epitope in each cluster
     cluster_epitope_x_counts = {i: {} for i in range(N_Clusters)}
@@ -235,7 +237,7 @@ def AHC(mx, true_labels, epitope_x, epitope_y):
     # Match Rate / Purity
     metrics = cluster_metrics(true_labels, clusters)
     for i, (match_rate, purity) in enumerate(metrics):
-        print(f"Cluster {i} - Match Rate: {match_rate}, Purity: {purity}")
+        print(f"Cluster {i} - Purity: {purity}")
 
     # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
     print("Silhouette Score:", silhouette_score(mx, clusters))
@@ -249,6 +251,7 @@ def AHC(mx, true_labels, epitope_x, epitope_y):
     # fowlkes_mallows_score: Higher fowlkes_mallows_score indicates better quality of clustering results(越高越好)
     print("fowlkes_mallows_score:", fowlkes_mallows_score(true_labels, clusters))
 
+    '''
     # Output the epitope that occurs in each cluster
     cluster_epitope_x = {i: set() for i in range(N_Clusters)}
     cluster_epitope_y = {i: set() for i in range(N_Clusters)}
@@ -261,6 +264,7 @@ def AHC(mx, true_labels, epitope_x, epitope_y):
         print(f"Cluster {cluster_id} alpha_Eptitopes:", eptitopes_x)
     for cluster_id, eptitopes_y in cluster_epitope_y.items():
         print(f"Cluster {cluster_id} beta_Eptitopes:", eptitopes_y)
+    '''
 
     # Output the most frequent epitope in each cluster
     cluster_epitope_x_counts = {i: {} for i in range(N_Clusters)}
@@ -322,19 +326,14 @@ if __name__ == '__main__':
                                                                                                  df_mouse_beta, 'mouse')
 
     # original gene species tag
-    print(np.array(df_mouse_combined.columns))
-    true_labels = df_mouse_combined['antigen.species']
-    epitope_x = df_mouse_combined['epitope_x']
-    epitope_y = df_mouse_combined['epitope_y']
+    df_select = df_mouse_combined
+    print(np.array(df_select.columns))
+    true_labels = df_select['antigen.species']
+    epitope_x = df_select['epitope_x']
+    epitope_y = df_select['epitope_y']
 
     # Combined dimensionality reduction
-    data_reduced = Combined_Reduction(mouse_combined_matrix, df_mouse_combined)
-
-    # Silhouette Score(轮廓系数): Higher Silhouette Score indicates better quality of clustering results(越高越好), Values in the range [-1, 1].
-    silhouette_avg = []
-
-    # Calinski-Harabasz index: Higher Calinski-Harabasz index indicates better quality of clustering results(越高越好)
-    calinski_harabasz_avg = []
+    data_reduced = Combined_Reduction(mouse_combined_matrix, df_select)
 
     # K-Means Clustering
     K_MEANS(data_reduced, true_labels, epitope_x, epitope_y)
