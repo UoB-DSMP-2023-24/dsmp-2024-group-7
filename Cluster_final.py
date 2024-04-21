@@ -106,7 +106,8 @@ def K_MEANS(mx, true_labels, epitope_x, epitope_y):
     kmeans = KMeans(n_clusters = N_Clusters)
     clusters = kmeans.fit_predict(mx)
     centers = kmeans.cluster_centers_
-    color_dict = {i: plt.cm.viridis(i / 10) for i in range(11)}
+    N_Clusters = len(np.unique(clusters))
+    color_dict = {i: plt.cm.viridis(i / 10) for i in range(N_Clusters)}
 
     # Visualization
     plt.subplots(1, 1, figsize=(12, 8))
@@ -201,7 +202,7 @@ def AHC(mx, true_labels, epitope_x, epitope_y):
     N_Clusters = len(true_labels.unique())  # number of clusters
     agglomerative_clustering = AgglomerativeClustering(n_clusters = N_Clusters, linkage='average')
     clusters = agglomerative_clustering.fit_predict(mx)
-    color_dict = {i: plt.cm.viridis(i / 10) for i in range(11)}
+    color_dict = {i: plt.cm.viridis(i / 10) for i in range(N_Clusters)}
 
     # Visualization
     plt.subplots(1, 1, figsize=(12, 8))
@@ -326,14 +327,16 @@ if __name__ == '__main__':
                                                                                                  df_mouse_beta, 'mouse')
 
     # original gene species tag
-    df_select = df_mouse_combined
+    df_select = df_homo_combined
+    mx_select = homo_combined_matrix
     print(np.array(df_select.columns))
+
     true_labels = df_select['antigen.species']
     epitope_x = df_select['epitope_x']
     epitope_y = df_select['epitope_y']
 
     # Combined dimensionality reduction
-    data_reduced = Combined_Reduction(mouse_combined_matrix, df_select)
+    data_reduced = Combined_Reduction(mx_select, df_select)
 
     # K-Means Clustering
     K_MEANS(data_reduced, true_labels, epitope_x, epitope_y)
